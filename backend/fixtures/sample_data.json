@@ -1,0 +1,83 @@
+[
+  {
+    "model": "core.student",
+    "pk": 1,
+    "fields": {
+      "name": "张三",
+      "id_card_number": "110101200001011234",
+      "residence_status": "RESIDENT",
+      "height": 175,
+      "weight": 65,
+      "uniform_purchase": true,
+      "interests_talents": "篮球、编程、音乐"
+    }
+  },
+  {
+    "model": "core.student",
+    "pk": 2,
+    "fields": {
+      "name": "李四",
+      "id_card_number": "110101200002022345",
+      "residence_status": "NON_RESIDENT",
+      "height": 168,
+      "weight": 58,
+      "uniform_purchase": false,
+      "interests_talents": "绘画、阅读"
+    }
+  },
+  {
+    "model": "core.student",
+    "pk": 3,
+    "fields": {
+      "name": "王五",
+      "id_card_number": "110101200003033456",
+      "residence_status": "RESIDENT",
+      "height": 172,
+      "weight": 70,
+      "uniform_purchase": true,
+      "interests_talents": "足球、摄影、书法"
+    }
+  },
+  {
+    "model": "groups.groupinfo",
+    "pk": 1,
+    "fields": {
+      "notification_number": "A001",
+      "group_name": "计算机科学A组",
+      "group_teacher": "陈老师",
+      "teacher_phone": "13800138001",
+      "report_location": "教学楼A201"
+    }
+  },
+  {
+    "model": "groups.groupinfo",
+    "pk": 2,
+    "fields": {
+      "notification_number": "B001",
+      "group_name": "数学与应用数学B组",
+      "group_teacher": "刘老师",
+      "teacher_phone": "13800138002",
+      "report_location": "教学楼B301"
+    }
+  },
+  {
+    "model": "groups.studentgroupassignment",
+    "pk": 1,
+    "fields": {
+      "student": 1,
+      "group_info": 1,
+      "is_active": true,
+      "remarks": "优秀学生"
+    }
+  },
+  {
+    "model": "groups.studentgroupassignment",
+    "pk": 2,
+    "fields": {
+      "student": 2,
+      "group_info": 2,
+      "is_active": true,
+      "remarks": ""
+    }
+  }
+]
