@@ -186,6 +186,18 @@ export class StudentService {
     const response = await api.get('/students/import_batches/');
     return response.data;
   }
+
+  // 通过姓名和身份证后6位查询学生
+  static async lookupByNameAndIdSuffix(data: {
+    name: string;
+    id_suffix: string;
+  }): Promise<{
+    message: string;
+    student: Student;
+  }> {
+    const response = await api.post('/students/lookup_by_name_and_id_suffix/', data);
+    return response.data;
+  }
 }
 
 // 分组管理API

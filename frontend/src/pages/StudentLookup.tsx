@@ -22,31 +22,21 @@ const StudentLookup: React.FC = () => {
   const [student, setStudent] = useState<any>(null);
   const navigate = useNavigate();
 
-  const handleSearch = async (values: { id_card_number: string; name: string }) => {
+  const handleSearch = async (values: { id_suffix: string; name: string }) => {
     setLoading(true);
     try {
-      // 通过搜索API查找学生
-      const response = await StudentService.getStudents({
-        filters: {
-          search: values.id_card_number,
-        },
+      // 使用新的安全查询API
+      const response = await StudentService.lookupByNameAndIdSuffix({
+        name: values.name,
+        id_suffix: values.id_suffix
       });
       
-      // 验证姓名是否匹配
-      const foundStudent = response.results.find(
-        s => s.name === values.name && s.id_card_number === values.id_card_number
-      );
-      
-      if (foundStudent) {
-        setStudent(foundStudent);
-        message.success('找到您的信息！');
-      } else {
-        message.error('未找到匹配的学生信息，请检查姓名和身份证号是否正确');
-        setStudent(null);
-      }
-    } catch (error) {
-      message.error('查询失败，请稍后重试');
-      console.error(error);
+      setStudent(response.student);
+      message.success(response.message || '找到您的信息！');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || '查询失败，请稍后重试';
+      message.error(errorMessage);
+      setStudent(null);
     } finally {
       setLoading(false);
     }
@@ -81,7 +71,7 @@ const StudentLookup: React.FC = () => {
             学生信息查询
           </Title>
           <Text type="secondary">
-            请输入您的姓名和身份证号码查询个人信息
+            请输入您的姓名和身份证后6位查询个人信息
           </Text>
         </div>
 
@@ -106,19 +96,19 @@ const StudentLookup: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            name="id_card_number"
-            label="身份证号码"
+            name="id_suffix"
+            label="身份证后6位"
             rules={[
-              { required: true, message: '请输入身份证号码' },
+              { required: true, message: '请输入身份证后6位' },
               { 
-                pattern: /^\d{17}[\dX]$/, 
-                message: '请输入正确的18位身份证号码' 
+                pattern: /^\d{6}$/, 
+                message: '请输入正确的6位数字' 
               },
             ]}
           >
             <Input 
-              placeholder="请输入18位身份证号码" 
-              maxLength={18}
+              placeholder="请输入身份证后6位数字" 
+              maxLength={6}
             />
           </Form.Item>
 
@@ -183,7 +173,7 @@ const StudentLookup: React.FC = () => {
         
         <Alert
           message="温馨提示"
-          description="如果您无法找到自己的信息，请联系系统管理员确认您的信息是否已经录入系统。"
+          description="请使用您的真实姓名和身份证后6位数字进行查询。如果您无法找到自己的信息，请联系系统管理员确认您的信息是否已经录入系统。"
           type="info"
           showIcon
         />

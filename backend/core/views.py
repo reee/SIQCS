@@ -244,6 +244,57 @@ class StudentViewSet(viewsets.ModelViewSet):
             'groups': groups_data
         })
     
+    @action(detail=False, methods=['post'])
+    def lookup_by_name_and_id_suffix(self, request):
+        """通过姓名和身份证后6位查询学生信息"""
+        name = request.data.get('name', '').strip()
+        id_suffix = request.data.get('id_suffix', '').strip()
+        
+        if not name or not id_suffix:
+            return Response(
+                {'error': '请提供姓名和身份证后6位'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if len(id_suffix) != 6:
+            return Response(
+                {'error': '身份证后6位长度不正确'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # 查找匹配的学生
+            students = Student.objects.filter(
+                name=name,
+                id_card_number__endswith=id_suffix
+            )
+            
+            if not students.exists():
+                return Response(
+                    {'error': '未找到匹配的学生信息，请检查姓名和身份证后6位是否正确'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            if students.count() > 1:
+                return Response(
+                    {'error': '找到多个匹配的学生，请联系管理员'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            student = students.first()
+            serializer = StudentListSerializer(student)
+            
+            return Response({
+                'message': '查询成功',
+                'student': serializer.data
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': f'查询失败: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
     @action(detail=False, methods=['delete'])
     def bulk_delete(self, request):
         """批量删除学生"""
