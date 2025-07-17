@@ -39,6 +39,7 @@ const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
+    document.title = '管理后台';
     loadStatistics();
   }, []);
 

@@ -49,6 +49,9 @@ const StudentProfile: React.FC = () => {
       const data = result.student;
       setStudent(data);
       
+      // 设置个性化标题
+      document.title = `${data.name} - 完善个人资料 - SIQCS`;
+      
       // 填充表单数据
       form.setFieldsValue({
         residence_status: data.residence_status,
@@ -69,6 +72,7 @@ const StudentProfile: React.FC = () => {
   }, [form, navigate]);
 
   useEffect(() => {
+    document.title = '完善个人资料';
     loadStudent();
   }, [loadStudent]);
 

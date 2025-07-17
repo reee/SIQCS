@@ -79,6 +79,7 @@ const StudentList: React.FC = () => {
   }, [currentPage, pageSize, filters]);
 
   useEffect(() => {
+    document.title = '学生管理';
     loadStudents();
   }, [loadStudents]);
 

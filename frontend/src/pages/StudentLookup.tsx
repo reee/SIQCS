@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Form,
@@ -19,6 +19,10 @@ const StudentLookup: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = '涪陵五中学生信息查询系统';
+  }, []);
 
   const handleSearch = async (values: { id_suffix: string; name: string }) => {
     setLoading(true);
@@ -78,7 +82,7 @@ const StudentLookup: React.FC = () => {
           <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
             学生信息查询
           </Title>
-          <Text type="secondary">
+          <Text type="secondary" style={{ display: 'block', marginTop: '8px' }}>
             请输入您的姓名和身份证后6位查询个人信息
           </Text>
         </div>

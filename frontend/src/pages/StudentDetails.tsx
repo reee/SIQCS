@@ -44,6 +44,9 @@ const StudentDetails: React.FC = () => {
       }
       
       setStudent(verification.student);
+      
+      // 设置个性化标题
+      document.title = `${verification.student.name}的详细信息 - SIQCS`;
 
       // 获取学生分组信息
       try {
@@ -64,6 +67,7 @@ const StudentDetails: React.FC = () => {
   }, [navigate]);
 
   useEffect(() => {
+    document.title = '个人详细信息';
     loadStudentDetails();
   }, [loadStudentDetails]);
 

@@ -94,6 +94,7 @@ const GroupManagement: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    document.title = '分组管理';
     loadGroups();
   }, [loadGroups]);
 
