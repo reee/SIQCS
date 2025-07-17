@@ -18,6 +18,32 @@ export interface ImportBatchesResponse {
   total_batches: number;
 }
 
+// 用户信息类型
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  is_superuser: boolean;
+}
+
+// 登录请求类型
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+// 登录响应类型
+export interface LoginResponse {
+  message: string;
+  user: User;
+}
+
+// 认证状态响应类型
+export interface AuthResponse {
+  authenticated: boolean;
+  user: User | null;
+}
+
 // 学生信息类型定义
 export interface Student {
   id: number;

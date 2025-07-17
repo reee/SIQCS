@@ -17,10 +17,15 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from . import views
+from . import auth_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', views.api_root, name='api_root'),
     path('api/', include('core.urls')),
     path('api/', include('groups.urls')),
+    # 认证相关接口
+    path('api/auth/login/', auth_views.admin_login, name='admin_login'),
+    path('api/auth/logout/', auth_views.admin_logout, name='admin_logout'),
+    path('api/auth/check/', auth_views.check_auth, name='check_auth'),
 ]

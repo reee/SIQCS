@@ -14,7 +14,10 @@ import {
   StudentGroupAssignment,
   PreviewResult,
   DeleteResponse,
-  ImportBatchesResponse
+  ImportBatchesResponse,
+  LoginRequest,
+  LoginResponse,
+  AuthResponse
 } from '../types';
 
 // 创建axios实例
@@ -347,6 +350,24 @@ export const AssignmentService = {
     remarks?: string;
   }>): Promise<StudentGroupAssignment[]> => {
     return api.post('/assignments/bulk_assign/', assignments).then(res => res.data);
+  },
+};
+
+// 认证服务
+export const AuthService = {
+  // 管理员登录
+  login: (credentials: LoginRequest): Promise<LoginResponse> => {
+    return api.post('/auth/login/', credentials).then(res => res.data);
+  },
+
+  // 管理员登出
+  logout: (): Promise<{ message: string }> => {
+    return api.post('/auth/logout/').then(res => res.data);
+  },
+
+  // 检查认证状态
+  checkAuth: (): Promise<AuthResponse> => {
+    return api.get('/auth/check/').then(res => res.data);
   },
 };
 
