@@ -7,7 +7,6 @@ import {
   message,
   Alert,
   Typography,
-  Space,
   Divider,
 } from 'antd';
 import { SearchOutlined, UserOutlined } from '@ant-design/icons';
@@ -19,7 +18,6 @@ const { Title, Text } = Typography;
 const StudentLookup: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [student, setStudent] = useState<any>(null);
   const navigate = useNavigate();
 
   const handleSearch = async (values: { id_suffix: string; name: string }) => {
@@ -31,20 +29,27 @@ const StudentLookup: React.FC = () => {
         id_suffix: values.id_suffix
       });
       
-      setStudent(response.student);
-      message.success(response.message || '找到您的信息！');
+      const studentData = response.student;
+      
+      // 根据学生信息完成状态进行跳转
+      if (studentData.info_status !== 'COMPLETE' || studentData.completion_percentage < 100) {
+        // 信息未完善，直接跳转到完善资料页面
+        message.success('找到您的信息，正在跳转到完善资料页面...');
+        setTimeout(() => {
+          navigate(`/students/${studentData.id}/profile`);
+        }, 1000);
+      } else {
+        // 信息已完善，直接跳转到详情页面
+        message.success('找到您的信息，正在跳转到详情页面...');
+        setTimeout(() => {
+          navigate(`/students/${studentData.id}/details`);
+        }, 1000);
+      }
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || '查询失败，请稍后重试';
       message.error(errorMessage);
-      setStudent(null);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoToProfile = () => {
-    if (student) {
-      navigate(`/students/${student.id}/profile`);
     }
   };
 
@@ -126,54 +131,11 @@ const StudentLookup: React.FC = () => {
           </Form.Item>
         </Form>
 
-        {student && (
-          <>
-            <Divider />
-            <Alert
-              message="查询成功！"
-              description={
-                <div>
-                  <p>学生：{student.name} ({student.gender_display})</p>
-                  <p>信息状态：{student.info_status_display}</p>
-                  <p>完成度：{student.completion_percentage}%</p>
-                </div>
-              }
-              type="success"
-              showIcon
-              style={{ marginBottom: '16px' }}
-            />
-            
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Button
-                type="primary"
-                block
-                size="large"
-                onClick={handleGoToProfile}
-                style={{ height: '48px' }}
-              >
-                完善我的资料
-              </Button>
-              
-              <Button
-                block
-                size="large"
-                onClick={() => {
-                  setStudent(null);
-                  form.resetFields();
-                }}
-                style={{ height: '40px' }}
-              >
-                重新查询
-              </Button>
-            </Space>
-          </>
-        )}
-
         <Divider />
         
         <Alert
           message="温馨提示"
-          description="请使用您的真实姓名和身份证后6位数字进行查询。如果您无法找到自己的信息，请联系系统管理员确认您的信息是否已经录入系统。"
+          description="请使用您的真实姓名和身份证后6位数字进行查询。如果您无法找到自己的信息，请拨打教导处电话 023-72897782 或到行政楼2楼教导处咨询。"
           type="info"
           showIcon
         />

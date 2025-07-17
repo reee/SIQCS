@@ -3,7 +3,6 @@ import {
   Card,
   Form,
   Input,
-  Select,
   InputNumber,
   Radio,
   Button,
@@ -20,7 +19,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Student, StudentProfileUpdate } from '../types';
 import { StudentService } from '../services/api';
 
-const { Option } = Select;
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
@@ -29,6 +27,7 @@ const StudentProfile: React.FC = () => {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [student, setStudent] = useState<Student | null>(null);
+  const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -40,6 +39,15 @@ const StudentProfile: React.FC = () => {
     try {
       const data = await StudentService.getStudent(parseInt(id));
       setStudent(data);
+      
+      // 加载分组信息
+      try {
+        const groupsResponse = await StudentService.getStudentGroups(parseInt(id));
+        setGroups(groupsResponse.groups || []);
+      } catch (error) {
+        console.log('获取分组信息失败:', error);
+        setGroups([]);
+      }
       
       // 填充表单数据
       form.setFieldsValue({
@@ -75,10 +83,10 @@ const StudentProfile: React.FC = () => {
       // 更新学生信息
       setStudent({ ...student, ...result.student });
       
-      // 如果信息已完整，可以跳转回列表页
+      // 如果信息已完整，跳转到详情页面
       if (result.student.info_status === 'COMPLETE') {
         setTimeout(() => {
-          navigate('/students');
+          navigate(`/students/${student.id}/details`);
         }, 1500);
       }
     } catch (error: any) {
@@ -155,10 +163,10 @@ const StudentProfile: React.FC = () => {
                 label="住校情况"
                 rules={[{ required: true, message: '请选择住校情况' }]}
               >
-                <Select placeholder="请选择住校情况">
-                  <Option value="RESIDENT">住校</Option>
-                  <Option value="NON_RESIDENT">不住校</Option>
-                </Select>
+                <Radio.Group>
+                  <Radio value="RESIDENT">住校</Radio>
+                  <Radio value="NON_RESIDENT">不住校</Radio>
+                </Radio.Group>
               </Form.Item>
             </Col>
 
@@ -291,6 +299,29 @@ const StudentProfile: React.FC = () => {
             </Col>
           </Row>
         </Form>
+
+        {/* 分组信息显示 */}
+        {groups && groups.length > 0 && (
+          <Card 
+            title="我的分组信息" 
+            style={{ marginTop: '24px' }}
+            size="small"
+          >
+            {groups.map((group, index) => (
+              <Card 
+                key={index}
+                size="small" 
+                type="inner"
+                title={group.group_name}
+                style={{ marginBottom: '8px' }}
+              >
+                <Text type="secondary">
+                  {group.group_type_display} - {group.description || '无描述'}
+                </Text>
+              </Card>
+            ))}
+          </Card>
+        )}
 
         {isComplete && (
           <Alert

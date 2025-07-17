@@ -198,6 +198,15 @@ export class StudentService {
     const response = await api.post('/students/lookup_by_name_and_id_suffix/', data);
     return response.data;
   }
+
+  // 获取学生分组信息
+  static async getStudentGroups(studentId: number): Promise<{
+    student: Student;
+    groups: any[];
+  }> {
+    const response = await api.get(`/students/${studentId}/groups/`);
+    return response.data;
+  }
 }
 
 // 分组管理API

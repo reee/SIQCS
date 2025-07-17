@@ -15,6 +15,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import StudentList from './pages/StudentList';
 import StudentProfile from './pages/StudentProfile';
+import StudentDetails from './pages/StudentDetails';
 import StudentLookup from './pages/StudentLookup';
 import GroupManagement from './pages/GroupManagement';
 import 'antd/dist/reset.css';
@@ -150,7 +151,6 @@ const AppLayout: React.FC = () => {
                 <StudentList />
               </ProtectedRoute>
             } />
-            <Route path="/students/:id/profile" element={<StudentProfile />} />
             <Route path="/groups" element={
               <ProtectedRoute>
                 <GroupManagement />
@@ -171,6 +171,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/lookup" element={<StudentLookup />} />
           <Route path="/students/:id/profile" element={<StudentProfile />} />
+          <Route path="/students/:id/details" element={<StudentDetails />} />
           <Route path="/*" element={<AppLayout />} />
         </Routes>
       </Router>
