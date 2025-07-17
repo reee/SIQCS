@@ -278,6 +278,37 @@ class GroupInfoViewSet(viewsets.ModelViewSet):
 
 
 class StudentGroupAssignmentViewSet(viewsets.ModelViewSet):
+    """学生分组分配API视图集"""
+    
+    queryset = StudentGroupAssignment.objects.all()
+    serializer_class = StudentGroupAssignmentSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['group_info__group_name', 'is_active']
+    search_fields = ['student__name', 'student__id_card_number', 'group_info__group_name']
+    ordering_fields = ['assigned_at']
+    ordering = ['-assigned_at']
+    
+    def get_queryset(self):
+        """优化查询，减少数据库访问"""
+        return super().get_queryset().select_related('student', 'group_info')
+    
+    @action(detail=False, methods=['post'])
+    def bulk_assign(self, request):
+        """批量分配学生到分组"""
+        assignments_data = request.data
+        
+        if not isinstance(assignments_data, list):
+            return Response(
+                {'error': '请提供分配信息列表'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer = StudentGroupAssignmentSerializer(data=assignments_data, many=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser])
     def preview_import_assignments(self, request):
         """预览Excel文件中的学生分组分配，不实际导入数据库"""
@@ -321,36 +352,6 @@ class StudentGroupAssignmentViewSet(viewsets.ModelViewSet):
         finally:
             if os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
-    """学生分组分配API视图集"""
-    
-    queryset = StudentGroupAssignment.objects.all()
-    serializer_class = StudentGroupAssignmentSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['group_info__group_name', 'is_active']
-    search_fields = ['student__name', 'student__id_card_number', 'group_info__notification_number']
-    ordering_fields = ['assigned_at']
-    ordering = ['-assigned_at']
-    
-    def get_queryset(self):
-        """优化查询，减少数据库访问"""
-        return super().get_queryset().select_related('student', 'group_info')
-    
-    @action(detail=False, methods=['post'])
-    def bulk_assign(self, request):
-        """批量分配学生到分组"""
-        assignments_data = request.data
-        
-        if not isinstance(assignments_data, list):
-            return Response(
-                {'error': '请提供分配信息列表'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        serializer = StudentGroupAssignmentSerializer(data=assignments_data, many=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=False, methods=['post'], parser_classes=[MultiPartParser, FormParser])
     def import_assignments(self, request):

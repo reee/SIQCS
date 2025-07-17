@@ -116,7 +116,6 @@ class Student(models.Model):
             self.height is not None,
             self.weight is not None,
             self.uniform_purchase is not None,
-            bool(self.interests_talents.strip()),
         ]
         
         if all(required_fields):
@@ -129,7 +128,7 @@ class Student(models.Model):
     @property
     def completion_percentage(self):
         """计算资料完成百分比"""
-        total_fields = 5  # 住校、身高、体重、校服、兴趣
+        total_fields = 4  # 住校、身高、体重、校服
         completed_fields = 0
         
         if self.residence_status != 'UNKNOWN':
@@ -139,8 +138,6 @@ class Student(models.Model):
         if self.weight is not None:
             completed_fields += 1
         if self.uniform_purchase is not None:
-            completed_fields += 1
-        if self.interests_talents.strip():
             completed_fields += 1
             
         return (completed_fields / total_fields) * 100

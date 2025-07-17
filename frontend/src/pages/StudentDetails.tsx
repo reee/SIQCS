@@ -8,16 +8,17 @@ import {
   Tag,
   Button,
   Space,
+  Empty,
+  message,
 } from 'antd';
-import { EditOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
-import { useParams, useNavigate } from 'react-router-dom';
+import { EditOutlined, UserOutlined, TeamOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { Student } from '../types';
 import { StudentService } from '../services/api';
 
 const { Title, Text } = Typography;
 
 const StudentDetails: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [student, setStudent] = useState<Student | null>(null);
   const [groups, setGroups] = useState<any[]>([]);
@@ -25,17 +26,29 @@ const StudentDetails: React.FC = () => {
 
   // 加载学生详细信息和分组信息
   const loadStudentDetails = useCallback(async () => {
-    if (!id) return;
+    const token = sessionStorage.getItem('student_access_token');
+    if (!token) {
+      message.error('访问token无效，请重新查询');
+      navigate('/lookup');
+      return;
+    }
     
     setLoading(true);
     try {
-      // 获取学生基本信息
-      const studentData = await StudentService.getStudent(parseInt(id));
-      setStudent(studentData);
+      // 验证token并获取学生基本信息
+      const verification = await StudentService.verifyAccess(token);
+      if (!verification.valid) {
+        message.error('访问token无效，请重新查询');
+        navigate('/lookup');
+        return;
+      }
+      
+      setStudent(verification.student);
 
       // 获取学生分组信息
       try {
-        const groupsResponse = await StudentService.getStudentGroups(parseInt(id));
+        const groupsResponse = await StudentService.getStudentGroupsByToken(token);
+        console.log('分组信息响应:', groupsResponse);
         setGroups(groupsResponse.groups || []);
       } catch (error) {
         console.log('获取分组信息失败:', error);
@@ -43,19 +56,19 @@ const StudentDetails: React.FC = () => {
       }
     } catch (error) {
       console.error('加载学生信息失败:', error);
+      message.error('加载学生信息失败，请重新查询');
+      navigate('/lookup');
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [navigate]);
 
   useEffect(() => {
     loadStudentDetails();
   }, [loadStudentDetails]);
 
   const handleEditProfile = () => {
-    if (student) {
-      navigate(`/students/${student.id}/profile`);
-    }
+    navigate('/student/profile');
   };
 
   if (loading) {
@@ -81,10 +94,10 @@ const StudentDetails: React.FC = () => {
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <UserOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '16px' }} />
           <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
-            个人资料详情
-          </Title>
-          <Text type="secondary">
             {student.name}的详细信息
+          </Title>
+          <Text type="secondary" style={{ display: 'block', marginTop: '8px' }}>
+            报名现场需要出示本页面，方可完成报名。若报名时不方便即时查询，请截图保存或提前打印。
           </Text>
         </div>
 
@@ -106,22 +119,18 @@ const StudentDetails: React.FC = () => {
             <Descriptions.Item label="身份证号">
               {student.id_card_number.replace(/^(.{6}).*(.{4})$/, '$1****$2')}
             </Descriptions.Item>
-            <Descriptions.Item label="邮箱">{student.email || '未填写'}</Descriptions.Item>
             <Descriptions.Item label="通知书编号">{student.notification_number || '未填写'}</Descriptions.Item>
-            <Descriptions.Item label="信息状态" span={2}>
-              <Tag color={student.info_status === 'COMPLETE' ? 'green' : 'orange'}>
-                {student.info_status_display}
-              </Tag>
-              <Text style={{ marginLeft: '8px' }}>
-                完成度: {student.completion_percentage}%
-              </Text>
-            </Descriptions.Item>
           </Descriptions>
         </Card>
 
         {/* 详细信息卡片 */}
         <Card 
-          title="详细信息"
+          title={
+            <span>
+              <InfoCircleOutlined style={{ marginRight: '8px' }} />
+              详细信息
+            </span>
+          }
           style={{ marginBottom: '20px' }}
           size="small"
         >
@@ -129,7 +138,7 @@ const StudentDetails: React.FC = () => {
             <Descriptions.Item label="住宿情况">{student.residence_status_display || '未填写'}</Descriptions.Item>
             <Descriptions.Item label="身高">{student.height ? `${student.height} cm` : '未填写'}</Descriptions.Item>
             <Descriptions.Item label="体重">{student.weight ? `${student.weight} kg` : '未填写'}</Descriptions.Item>
-            <Descriptions.Item label="是否购买校服">
+            <Descriptions.Item label="是否自愿购买校服">
               {student.uniform_purchase !== undefined ? (student.uniform_purchase ? '是' : '否') : '未填写'}
             </Descriptions.Item>
             <Descriptions.Item label="手机号码">{student.phone_number || '未填写'}</Descriptions.Item>
@@ -142,49 +151,36 @@ const StudentDetails: React.FC = () => {
           </Descriptions>
         </Card>
 
-        {/* 分组信息卡片 */}
+        {/* 学生分组信息卡片 */}
         <Card 
           title={
             <span>
               <TeamOutlined style={{ marginRight: '8px' }} />
-              分组信息
+              报名分组信息
             </span>
           }
           style={{ marginBottom: '20px' }}
           size="small"
         >
-          {groups && groups.length > 0 ? (
-            <Space direction="vertical" style={{ width: '100%' }}>
-              {groups.map((group, index) => (
-                <Card 
-                  key={index}
-                  size="small" 
-                  type="inner"
-                  title={group.group_name}
-                  extra={<Tag color="blue">{group.group_type_display}</Tag>}
-                >
-                  <Descriptions column={1} size="small">
-                    <Descriptions.Item label="分组描述">
-                      {group.description || '无描述'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="分配时间">
-                      {group.assigned_at ? new Date(group.assigned_at).toLocaleString() : '未知'}
-                    </Descriptions.Item>
-                  </Descriptions>
-                </Card>
-              ))}
-            </Space>
+          {groups.length > 0 ? (
+            <Descriptions column={2} bordered>
+              <Descriptions.Item label="所属分组">
+                {groups[0].group_info.group_name}
+              </Descriptions.Item>
+              <Descriptions.Item label="分组教师">
+                {groups[0].group_info.group_teacher || '暂无'}
+              </Descriptions.Item>
+              <Descriptions.Item label="教师电话">
+                {groups[0].group_info.teacher_phone || '暂无'}
+              </Descriptions.Item>
+              <Descriptions.Item label="报到地点">
+                {groups[0].group_info.report_location || '暂无'}
+              </Descriptions.Item>
+            </Descriptions>
           ) : (
-            <Alert 
-              message="暂无分组信息" 
-              description="您还没有被分配到任何分组"
-              type="info" 
-              showIcon 
-            />
+            <Empty description="暂无分组信息" />
           )}
-        </Card>
-
-        {/* 操作按钮 */}
+        </Card>        {/* 操作按钮 */}
         <div style={{ textAlign: 'center', marginTop: '24px' }}>
           <Space>
             <Button

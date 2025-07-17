@@ -229,7 +229,6 @@ class StudentViewSet(viewsets.ModelViewSet):
                 'assignment_id': assignment.id,
                 'group_info': {
                     'id': assignment.group_info.id,
-                    'notification_number': assignment.group_info.notification_number,
                     'group_name': assignment.group_info.group_name,
                     'group_teacher': assignment.group_info.group_teacher,
                     'teacher_phone': assignment.group_info.teacher_phone,
@@ -284,14 +283,96 @@ class StudentViewSet(viewsets.ModelViewSet):
             student = students.first()
             serializer = StudentListSerializer(student)
             
+            # 生成安全访问token
+            import hashlib
+            import time
+            import secrets
+            
+            # 创建包含学生ID、时间戳和随机数的token
+            timestamp = str(int(time.time()))
+            random_str = secrets.token_urlsafe(16)
+            token_data = f"{student.id}:{timestamp}:{random_str}"
+            
+            # 使用学生身份证号作为密钥的一部分来加密token
+            secret_key = f"{student.id_card_number}:{student.name}:SIQCS_SECRET"
+            token = hashlib.sha256(f"{token_data}:{secret_key}".encode()).hexdigest()
+            
             return Response({
                 'message': '查询成功',
-                'student': serializer.data
+                'student': serializer.data,
+                'access_token': f"{student.id}:{timestamp}:{random_str}:{token}"
             })
             
         except Exception as e:
             return Response(
                 {'error': f'查询失败: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'])
+    def verify_access(self, request):
+        """验证访问token并返回学生信息"""
+        token = request.query_params.get('token', '')
+        
+        if not token:
+            return Response(
+                {'error': '缺少访问token'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # 解析token
+            parts = token.split(':')
+            if len(parts) != 4:
+                return Response(
+                    {'error': '无效的访问token'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            student_id, timestamp, random_str, provided_token = parts
+            
+            # 检查学生是否存在
+            try:
+                student = Student.objects.get(id=int(student_id))
+            except (Student.DoesNotExist, ValueError):
+                return Response(
+                    {'error': '学生信息不存在'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # 验证token
+            import hashlib
+            import time
+            
+            token_data = f"{student_id}:{timestamp}:{random_str}"
+            secret_key = f"{student.id_card_number}:{student.name}:SIQCS_SECRET"
+            expected_token = hashlib.sha256(f"{token_data}:{secret_key}".encode()).hexdigest()
+            
+            if provided_token != expected_token:
+                return Response(
+                    {'error': '访问token无效'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # 检查token是否过期（24小时有效期）
+            current_time = int(time.time())
+            token_time = int(timestamp)
+            if current_time - token_time > 24 * 3600:  # 24小时
+                return Response(
+                    {'error': '访问token已过期，请重新查询'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # 返回学生信息
+            serializer = StudentSerializer(student)
+            return Response({
+                'student': serializer.data,
+                'valid': True
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': f'token验证失败: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     

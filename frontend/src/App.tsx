@@ -170,8 +170,8 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/lookup" element={<StudentLookup />} />
-          <Route path="/students/:id/profile" element={<StudentProfile />} />
-          <Route path="/students/:id/details" element={<StudentDetails />} />
+          <Route path="/student/profile" element={<StudentProfile />} />
+          <Route path="/student/details" element={<StudentDetails />} />
           <Route path="/*" element={<AppLayout />} />
         </Routes>
       </Router>

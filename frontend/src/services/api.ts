@@ -194,8 +194,34 @@ export class StudentService {
   }): Promise<{
     message: string;
     student: Student;
+    access_token: string;
   }> {
     const response = await api.post('/students/lookup_by_name_and_id_suffix/', data);
+    return response.data;
+  }
+
+  // 验证访问token并获取学生信息
+  static async verifyAccess(token: string): Promise<{
+    student: Student;
+    valid: boolean;
+  }> {
+    const response = await api.get(`/students/verify_access/?token=${encodeURIComponent(token)}`);
+    return response.data;
+  }
+
+  // 获取学生分组信息（需要token验证）
+  static async getStudentGroupsByToken(token: string): Promise<{
+    student: Student;
+    groups: any[];
+  }> {
+    // 首先验证token并获取学生信息
+    const verification = await this.verifyAccess(token);
+    if (!verification.valid) {
+      throw new Error('访问token无效');
+    }
+    
+    // 然后获取分组信息
+    const response = await api.get(`/students/${verification.student.id}/groups/`);
     return response.data;
   }
 

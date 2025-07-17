@@ -9,13 +9,12 @@ import {
   message,
   Row,
   Col,
-  Progress,
   Typography,
   Alert,
   Spin,
 } from 'antd';
-import { SaveOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { useParams, useNavigate } from 'react-router-dom';
+import { SaveOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { Student, StudentProfileUpdate } from '../types';
 import { StudentService } from '../services/api';
 
@@ -23,31 +22,32 @@ const { TextArea } = Input;
 const { Title, Text } = Typography;
 
 const StudentProfile: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [student, setStudent] = useState<Student | null>(null);
-  const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // 加载学生信息
   const loadStudent = useCallback(async () => {
-    if (!id) return;
+    const token = sessionStorage.getItem('student_access_token');
+    if (!token) {
+      message.error('访问token无效，请重新查询');
+      navigate('/lookup');
+      return;
+    }
     
     setLoading(true);
     try {
-      const data = await StudentService.getStudent(parseInt(id));
-      setStudent(data);
-      
-      // 加载分组信息
-      try {
-        const groupsResponse = await StudentService.getStudentGroups(parseInt(id));
-        setGroups(groupsResponse.groups || []);
-      } catch (error) {
-        console.log('获取分组信息失败:', error);
-        setGroups([]);
+      const result = await StudentService.verifyAccess(token);
+      if (!result.valid) {
+        message.error('访问token无效，请重新查询');
+        navigate('/lookup');
+        return;
       }
+      
+      const data = result.student;
+      setStudent(data);
       
       // 填充表单数据
       form.setFieldsValue({
@@ -62,10 +62,11 @@ const StudentProfile: React.FC = () => {
     } catch (error) {
       message.error('加载学生信息失败');
       console.error(error);
+      navigate('/lookup');
     } finally {
       setLoading(false);
     }
-  }, [id, form]);
+  }, [form, navigate]);
 
   useEffect(() => {
     loadStudent();
@@ -86,7 +87,7 @@ const StudentProfile: React.FC = () => {
       // 如果信息已完整，跳转到详情页面
       if (result.student.info_status === 'COMPLETE') {
         setTimeout(() => {
-          navigate(`/students/${student.id}/details`);
+          navigate('/student/details');
         }, 1500);
       }
     } catch (error: any) {
@@ -113,42 +114,7 @@ const StudentProfile: React.FC = () => {
   return (
     <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
       <Card>
-        <Title level={2}>完善个人资料</Title>
-        
-        {/* 学生基本信息显示 */}
-        <Alert
-          message={
-            <div>
-              <Text strong>学生信息：</Text>
-              {student.name} ({student.gender_display}) - {student.id_card_number.replace(/^(.{6}).*(.{4})$/, '$1****$2')}
-              {student.age && <Text> - {student.age}岁</Text>}
-            </div>
-          }
-          type="info"
-          style={{ marginBottom: 24 }}
-        />
-
-        {/* 完成进度 */}
-        <Card size="small" style={{ marginBottom: 24 }}>
-          <Row gutter={16} align="middle">
-            <Col span={4}>
-              <Text strong>完成进度：</Text>
-            </Col>
-            <Col span={16}>
-              <Progress
-                percent={student.completion_percentage}
-                status={isComplete ? 'success' : 'active'}
-                strokeColor={isComplete ? '#52c41a' : '#1890ff'}
-              />
-            </Col>
-            <Col span={4}>
-              <Text type={isComplete ? 'success' : 'warning'}>
-                {student.info_status_display}
-              </Text>
-              {isComplete && <CheckCircleOutlined style={{ color: '#52c41a', marginLeft: 8 }} />}
-            </Col>
-          </Row>
-        </Card>
+        <Title level={2}>{student.name} 同学，请完善你的个人资料</Title>
 
         <Form
           form={form}
@@ -193,9 +159,9 @@ const StudentProfile: React.FC = () => {
                   { required: true, message: '请输入身高' },
                   {
                     type: 'number',
-                    min: 50,
+                    min: 120,
                     max: 250,
-                    message: '身高应在50-250cm之间',
+                    message: '身高应在120-250cm之间',
                   },
                 ]}
               >
@@ -217,14 +183,14 @@ const StudentProfile: React.FC = () => {
                   { required: true, message: '请输入体重' },
                   {
                     type: 'number',
-                    min: 10,
-                    max: 200,
-                    message: '体重应在10-200kg之间',
+                    min: 40,
+                    max: 250,
+                    message: '体重应在40-250kg之间',
                   },
                 ]}
               >
                 <InputNumber
-                  placeholder="请输入体重"
+                  placeholder="请输入体重，注意单位为千克"
                   style={{ width: '100%' }}
                   min={10}
                   max={200}
@@ -236,7 +202,7 @@ const StudentProfile: React.FC = () => {
             <Col span={12}>
               <Form.Item
                 name="phone_number"
-                label="手机号码"
+                label="手机号码（可选）"
                 rules={[
                   {
                     pattern: /^1\d{10}$/,
@@ -252,7 +218,7 @@ const StudentProfile: React.FC = () => {
             <Col span={12}>
               <Form.Item
                 name="email"
-                label="邮箱地址"
+                label="邮箱地址（可选）"
                 rules={[
                   {
                     type: 'email',
@@ -268,14 +234,20 @@ const StudentProfile: React.FC = () => {
             <Col span={24}>
               <Form.Item
                 name="interests_talents"
-                label="兴趣特长"
+                label="兴趣特长（可选）"
                 rules={[
-                  { required: true, message: '请填写兴趣特长' },
-                  { min: 10, message: '兴趣特长至少需要10个字符' },
+                  {
+                    validator: async (_, value) => {
+                      if (value && value.trim().length > 0 && value.trim().length < 2) {
+                        throw new Error('兴趣特长至少需要2个字符');
+                      }
+                      return Promise.resolve();
+                    }
+                  }
                 ]}
               >
                 <TextArea
-                  placeholder="请详细描述您的兴趣特长，如体育运动、音乐艺术、科技创新等..."
+                  placeholder="请详细描述您的兴趣特长，如体育运动、音乐艺术、科技创新等...（可选填写）"
                   rows={4}
                   maxLength={500}
                   showCount
@@ -300,28 +272,14 @@ const StudentProfile: React.FC = () => {
           </Row>
         </Form>
 
-        {/* 分组信息显示 */}
-        {groups && groups.length > 0 && (
-          <Card 
-            title="我的分组信息" 
-            style={{ marginTop: '24px' }}
-            size="small"
-          >
-            {groups.map((group, index) => (
-              <Card 
-                key={index}
-                size="small" 
-                type="inner"
-                title={group.group_name}
-                style={{ marginBottom: '8px' }}
-              >
-                <Text type="secondary">
-                  {group.group_type_display} - {group.description || '无描述'}
-                </Text>
-              </Card>
-            ))}
-          </Card>
-        )}
+        {/* 分组信息提醒 */}
+        <Alert
+          message="分组信息提醒"
+          description="请完成个人资料填写并点击保存，保存成功后您将能够查看报名分组信息。"
+          type="info"
+          showIcon
+          style={{ marginTop: 24 }}
+        />
 
         {isComplete && (
           <Alert

@@ -24,25 +24,28 @@ const StudentLookup: React.FC = () => {
     setLoading(true);
     try {
       // 使用新的安全查询API
-      const response = await StudentService.lookupByNameAndIdSuffix({
+      const result = await StudentService.lookupByNameAndIdSuffix({
         name: values.name,
-        id_suffix: values.id_suffix
+        id_suffix: values.id_suffix,
       });
+
+      const studentData = result.student;
+      const accessToken = result.access_token;
       
-      const studentData = response.student;
-      
-      // 根据学生信息完成状态进行跳转
-      if (studentData.info_status !== 'COMPLETE' || studentData.completion_percentage < 100) {
-        // 信息未完善，直接跳转到完善资料页面
-        message.success('找到您的信息，正在跳转到完善资料页面...');
+      // 将token保存到sessionStorage
+      sessionStorage.setItem('student_access_token', accessToken);
+
+      if (studentData.info_status !== 'COMPLETE') {
+        // 信息未完善，跳转到资料完善页面
+        message.success('找到您的信息，正在跳转到资料完善页面...');
         setTimeout(() => {
-          navigate(`/students/${studentData.id}/profile`);
+          navigate('/student/profile');
         }, 1000);
       } else {
         // 信息已完善，直接跳转到详情页面
         message.success('找到您的信息，正在跳转到详情页面...');
         setTimeout(() => {
-          navigate(`/students/${studentData.id}/details`);
+          navigate('/student/details');
         }, 1000);
       }
     } catch (error: any) {
