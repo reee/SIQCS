@@ -1,3 +1,23 @@
+// 删除响应类型
+export interface DeleteResponse {
+  message: string;
+  deleted_count?: number;
+  deleted_groups?: number;
+  deleted_assignments?: number;
+}
+
+// 批次信息类型
+export interface ImportBatch {
+  batch_name: string;
+  student_count: number;
+}
+
+// 批次列表响应类型
+export interface ImportBatchesResponse {
+  batches: ImportBatch[];
+  total_batches: number;
+}
+
 // 学生信息类型定义
 export interface Student {
   id: number;
@@ -95,14 +115,46 @@ export interface StudentProfileUpdate {
 // 文件上传响应类型
 export interface ImportResponse {
   success: boolean;
-  message: string;
+  message?: string;
+  error?: string;
   total_rows?: number;
   successful_imports?: number;
   failed_imports?: number;
-  errors?: Array<{
-    row: number;
-    error: string;
-  }>;
+  success_count?: number;
+  skip_count?: number;
+  total_processed?: number;
+  errors?: string[];  // 改为字符串数组
+  warnings?: string[]; // 添加warnings字段
+}
+
+// 预览记录类型
+export interface PreviewRecord {
+  row_number: number;
+  notification_number: string;
+  group_name: string;
+  remarks?: string;
+  status: 'success' | 'warning' | 'error';
+  message: string;
+  student_name?: string;
+  existing_group?: string;
+}
+
+// 预览结果类型
+export interface PreviewResult {
+  success: boolean;
+  total_rows: number;
+  valid_count: number;
+  warning_count: number;
+  error_count: number;
+  records: PreviewRecord[];
+  summary: {
+    new_assignments: number;
+    duplicate_assignments: number;
+    conflicting_assignments: number;
+    invalid_students: number;
+    invalid_groups: number;
+  };
+  error?: string;
 }
 
 // 表格过滤器类型

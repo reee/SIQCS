@@ -16,6 +16,7 @@ import {
   Upload,
   Typography,
   Divider,
+  Popconfirm,
 } from 'antd';
 import {
   PlusOutlined,
@@ -24,12 +25,14 @@ import {
   ReloadOutlined,
   EyeOutlined,
   EditOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { StudentListItem, StudentFilters } from '../types';
 import { StudentService } from '../services/api';
 import StudentDetailModal from '../components/StudentDetailModal';
 import StudentFormModal from '../components/StudentFormModal';
+import StudentBulkDeleteModal from '../components/StudentBulkDeleteModal';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -48,6 +51,8 @@ const StudentList: React.FC = () => {
   const [editingStudent, setEditingStudent] = useState<StudentListItem | null>(null);
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [bulkDeleteModalVisible, setBulkDeleteModalVisible] = useState(false);
 
   const [form] = Form.useForm();
 
@@ -153,6 +158,32 @@ const StudentList: React.FC = () => {
     }
   };
 
+  // 删除单个学生
+  const handleDelete = async (studentId: number) => {
+    try {
+      await StudentService.deleteStudent(studentId);
+      message.success('删除成功');
+      loadStudents();
+      // 如果删除的是当前选中的学生，清空选择
+      setSelectedRowKeys(prev => prev.filter(key => key !== studentId));
+    } catch (error: any) {
+      message.error(`删除失败：${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  // 批量删除成功后的回调
+  const handleBulkDeleteSuccess = () => {
+    setSelectedRowKeys([]);
+    loadStudents();
+  };
+
+  // 行选择配置
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: setSelectedRowKeys,
+    preserveSelectedRowKeys: true,
+  };
+
   // 获取状态标签颜色
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -253,7 +284,7 @@ const StudentList: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 120,
+      width: 180,
       fixed: 'right',
       render: (_, record) => (
         <Space>
@@ -271,6 +302,22 @@ const StudentList: React.FC = () => {
           >
             编辑
           </Button>
+          <Popconfirm
+            title="确认删除"
+            description="确定要删除这名学生吗？此操作不可恢复。"
+            onConfirm={() => handleDelete(record.id)}
+            okText="确认"
+            cancelText="取消"
+            okType="danger"
+          >
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+            >
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -303,6 +350,14 @@ const StudentList: React.FC = () => {
                 onClick={handleDownloadTemplate}
               >
                 下载模板
+              </Button>
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => setBulkDeleteModalVisible(true)}
+                disabled={selectedRowKeys.length === 0}
+              >
+                批量删除 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
               </Button>
               <Button
                 icon={<ReloadOutlined />}
@@ -387,6 +442,7 @@ const StudentList: React.FC = () => {
           rowKey="id"
           loading={loading}
           scroll={{ x: 1200 }}
+          rowSelection={rowSelection}
           pagination={{
             current: currentPage,
             pageSize: pageSize,
@@ -483,6 +539,14 @@ const StudentList: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* 批量删除模态框 */}
+      <StudentBulkDeleteModal
+        visible={bulkDeleteModalVisible}
+        onCancel={() => setBulkDeleteModalVisible(false)}
+        onSuccess={handleBulkDeleteSuccess}
+        selectedStudentIds={selectedRowKeys.map(key => Number(key))}
+      />
     </div>
   );
 };

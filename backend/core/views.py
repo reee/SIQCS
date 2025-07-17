@@ -243,3 +243,68 @@ class StudentViewSet(viewsets.ModelViewSet):
             'student': StudentListSerializer(student).data,
             'groups': groups_data
         })
+    
+    @action(detail=False, methods=['delete'])
+    def bulk_delete(self, request):
+        """批量删除学生"""
+        student_ids = request.data.get('student_ids', [])
+        import_batch = request.data.get('import_batch', '')
+        delete_all = request.data.get('delete_all', False)
+        
+        if delete_all:
+            # 删除所有学生
+            deleted_count = Student.objects.count()
+            Student.objects.all().delete()
+            return Response({
+                'message': f'成功删除 {deleted_count} 名学生',
+                'deleted_count': deleted_count
+            })
+        
+        if import_batch:
+            # 按批次删除
+            deleted_count = Student.objects.filter(import_batch=import_batch).count()
+            Student.objects.filter(import_batch=import_batch).delete()
+            return Response({
+                'message': f'成功删除批次 "{import_batch}" 的 {deleted_count} 名学生',
+                'deleted_count': deleted_count
+            })
+        
+        if student_ids:
+            # 按ID列表删除
+            if not isinstance(student_ids, list):
+                return Response(
+                    {'error': 'student_ids 必须是数组'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            deleted_count = Student.objects.filter(id__in=student_ids).count()
+            Student.objects.filter(id__in=student_ids).delete()
+            return Response({
+                'message': f'成功删除 {deleted_count} 名学生',
+                'deleted_count': deleted_count
+            })
+        
+        return Response(
+            {'error': '请提供要删除的学生ID列表、导入批次或设置删除全部'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    @action(detail=False, methods=['get'])
+    def import_batches(self, request):
+        """获取所有导入批次"""
+        batches = Student.objects.exclude(
+            Q(import_batch__isnull=True) | Q(import_batch='')
+        ).values_list('import_batch', flat=True).distinct().order_by('import_batch')
+        
+        batch_stats = []
+        for batch in batches:
+            count = Student.objects.filter(import_batch=batch).count()
+            batch_stats.append({
+                'batch_name': batch,
+                'student_count': count
+            })
+        
+        return Response({
+            'batches': batch_stats,
+            'total_batches': len(batch_stats)
+        })

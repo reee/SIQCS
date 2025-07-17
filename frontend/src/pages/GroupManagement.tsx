@@ -10,7 +10,6 @@ import {
   Row,
   Col,
   Modal,
-  Form,
   Upload,
   Typography,
   Statistic,
@@ -29,10 +28,12 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { GroupInfo, GroupFilters, GroupStatistics } from '../types';
+import { GroupInfo, GroupFilters, GroupStatistics, PreviewResult } from '../types';
 import { GroupService } from '../services/api';
 import GroupFormModal from '../components/GroupFormModal';
 import GroupStudentsModal from '../components/GroupStudentsModal';
+import AssignmentPreviewModal from '../components/AssignmentPreviewModal';
+import GroupBulkDeleteModal from '../components/GroupBulkDeleteModal';
 
 const { Search } = Input;
 const { Title } = Typography;
@@ -50,11 +51,15 @@ const GroupManagement: React.FC = () => {
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [studentsModalVisible, setStudentsModalVisible] = useState(false);
   const [importModalVisible, setImportModalVisible] = useState(false);
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [bulkDeleteModalVisible, setBulkDeleteModalVisible] = useState(false);
   const [editingGroup, setEditingGroup] = useState<GroupInfo | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [importing, setImporting] = useState(false);
-
-  const [form] = Form.useForm();
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewData, setPreviewData] = useState<PreviewResult | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   // 加载分组列表
   const loadGroups = useCallback(async () => {
@@ -125,10 +130,26 @@ const GroupManagement: React.FC = () => {
       message.success('删除成功');
       loadGroups();
       loadStatistics();
+      // 如果删除的是当前选中的分组，清空选择
+      setSelectedRowKeys(prev => prev.filter(key => key !== id));
     } catch (error) {
       message.error('删除失败');
       console.error(error);
     }
+  };
+
+  // 批量删除成功后的回调
+  const handleBulkDeleteSuccess = () => {
+    setSelectedRowKeys([]);
+    loadGroups();
+    loadStatistics();
+  };
+
+  // 行选择配置
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: setSelectedRowKeys,
+    preserveSelectedRowKeys: true,
   };
 
   // 查看分组学生
@@ -196,6 +217,169 @@ const GroupManagement: React.FC = () => {
     } finally {
       setImporting(false);
     }
+  };
+
+  // 下载学生分组分配模板
+  const handleDownloadAssignmentTemplate = async () => {
+    try {
+      const blob = await GroupService.downloadAssignmentTemplate();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = '学生分组分配导入模板.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      message.error('下载模板失败');
+      console.error(error);
+    }
+  };
+
+  // 处理Excel文件上传，先预览
+  const handleImportAssignments = async (file: File) => {
+    setPreviewLoading(true);
+    setUploadedFile(file);
+    
+    try {
+      const result = await GroupService.previewAssignmentsExcel(file);
+      
+      if (result.success) {
+        setPreviewData(result);
+        setPreviewModalVisible(true);
+      } else {
+        Modal.error({
+          title: '文件预览失败',
+          content: (
+            <div>
+              <p><strong>错误原因：</strong>{result.error}</p>
+              <p>请检查Excel文件格式和内容是否正确。</p>
+            </div>
+          ),
+          width: 600,
+        });
+      }
+    } catch (error: any) {
+      console.error('预览失败:', error);
+      Modal.error({
+        title: '预览失败',
+        content: (
+          <div>
+            <p>请检查以下项目：</p>
+            <ul>
+              <li>Excel文件格式是否正确（.xlsx 或 .xls）</li>
+              <li>文件是否包含必需的列（通知书编号、分组名称）</li>
+              <li>网络连接是否正常</li>
+            </ul>
+            <p><strong>技术错误：</strong>{error.response?.data?.error || error.message}</p>
+          </div>
+        ),
+        width: 600,
+      });
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  // 确认导入
+  const handleConfirmImport = async () => {
+    if (!uploadedFile) {
+      message.error('没有找到上传的文件');
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const result = await GroupService.importAssignmentsExcel(uploadedFile);
+      
+      if (result.success) {
+        message.success(result.message || `导入完成: 成功 ${result.success_count} 条记录`);
+        
+        // 显示警告信息（如跳过的记录）
+        if (result.warnings && result.warnings.length > 0) {
+          Modal.info({
+            title: '导入提醒',
+            content: (
+              <div>
+                <p>以下是导入过程中的提醒信息：</p>
+                <ul style={{ maxHeight: 300, overflow: 'auto' }}>
+                  {result.warnings.map((warning: string, index: number) => (
+                    <li key={index} style={{ marginBottom: 4 }}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            ),
+            width: 600,
+          });
+        }
+        
+        // 显示错误信息
+        if (result.errors && result.errors.length > 0) {
+          Modal.error({
+            title: `导入错误 (${result.errors.length} 条)`,
+            content: (
+              <div>
+                <p>以下记录导入失败，请检查数据格式：</p>
+                <ul style={{ maxHeight: 300, overflow: 'auto' }}>
+                  {result.errors.map((error: string, index: number) => (
+                    <li key={index} style={{ marginBottom: 4, color: '#ff4d4f' }}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            ),
+            width: 700,
+          });
+        }
+        
+        setPreviewModalVisible(false);
+        setPreviewData(null);
+        setUploadedFile(null);
+        loadGroups();
+        loadStatistics();
+      } else {
+        Modal.error({
+          title: '导入失败',
+          content: (
+            <div>
+              <p><strong>错误原因：</strong>{result.error}</p>
+              {result.errors && result.errors.length > 0 && (
+                <div>
+                  <p><strong>详细错误：</strong></p>
+                  <ul style={{ maxHeight: 200, overflow: 'auto' }}>
+                    {result.errors.map((error: string, index: number) => (
+                      <li key={index} style={{ marginBottom: 4 }}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ),
+          width: 600,
+        });
+      }
+    } catch (error: any) {
+      console.error('导入失败:', error);
+      Modal.error({
+        title: '导入失败',
+        content: (
+          <div>
+            <p>导入过程中发生错误，请重试或联系管理员。</p>
+            <p><strong>技术错误：</strong>{error.response?.data?.error || error.message}</p>
+          </div>
+        ),
+        width: 600,
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // 取消预览
+  const handleCancelPreview = () => {
+    setPreviewModalVisible(false);
+    setPreviewData(null);
+    setUploadedFile(null);
   };
 
   // 表格列定义
@@ -383,6 +567,14 @@ const GroupManagement: React.FC = () => {
                 下载模板
               </Button>
               <Button
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => setBulkDeleteModalVisible(true)}
+                disabled={selectedRowKeys.length === 0}
+              >
+                批量删除 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
+              </Button>
+              <Button
                 icon={<ReloadOutlined />}
                 onClick={() => {
                   loadGroups();
@@ -401,6 +593,7 @@ const GroupManagement: React.FC = () => {
           dataSource={groups}
           rowKey="id"
           loading={loading}
+          rowSelection={rowSelection}
           pagination={{
             current: currentPage,
             pageSize: pageSize,
@@ -438,46 +631,121 @@ const GroupManagement: React.FC = () => {
 
       {/* 导入Excel弹窗 */}
       <Modal
-        title="导入分组信息"
+        title="导入Excel"
         open={importModalVisible}
         onCancel={() => setImportModalVisible(false)}
         footer={null}
         destroyOnClose
+        width={600}
       >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="file"
-            label="选择Excel文件"
-            rules={[{ required: true, message: '请选择要导入的Excel文件' }]}
-          >
-            <Upload
-              beforeUpload={(file) => {
-                if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-                  message.error('只支持Excel文件格式');
-                  return false;
-                }
-                handleImportExcel(file);
-                return false;
-              }}
-              showUploadList={false}
-              disabled={importing}
-            >
-              <Button
-                icon={<ImportOutlined />}
-                loading={importing}
-                block
-              >
-                {importing ? '导入中...' : '选择文件并导入'}
-              </Button>
-            </Upload>
-          </Form.Item>
-          <Divider />
-          <p style={{ color: '#666' }}>
-            支持的文件格式：.xlsx, .xls<br />
-            请先下载模板，按照模板格式填写数据后导入。
-          </p>
-        </Form>
+        <Row gutter={[16, 16]}>
+          {/* 导入分组信息 */}
+          <Col span={12}>
+            <Card title="导入分组信息" size="small">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Button
+                  icon={<DownloadOutlined />}
+                  onClick={handleDownloadTemplate}
+                  block
+                >
+                  下载分组信息模板
+                </Button>
+                <Upload
+                  beforeUpload={(file) => {
+                    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+                      message.error('只支持Excel文件格式');
+                      return false;
+                    }
+                    handleImportExcel(file);
+                    return false;
+                  }}
+                  showUploadList={false}
+                  disabled={importing}
+                >
+                  <Button
+                    icon={<ImportOutlined />}
+                    loading={importing}
+                    block
+                    type="primary"
+                  >
+                    {importing ? '导入中...' : '导入分组信息'}
+                  </Button>
+                </Upload>
+              </Space>
+            </Card>
+          </Col>
+
+          {/* 导入学生分组分配 */}
+          <Col span={12}>
+            <Card title="导入学生分组分配" size="small">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Button
+                  icon={<DownloadOutlined />}
+                  onClick={handleDownloadAssignmentTemplate}
+                  block
+                >
+                  下载分配关系模板
+                </Button>
+                <Upload
+                  beforeUpload={(file) => {
+                    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+                      message.error('只支持Excel文件格式');
+                      return false;
+                    }
+                    handleImportAssignments(file);
+                    return false;
+                  }}
+                  showUploadList={false}
+                  disabled={previewLoading || importing}
+                >
+                  <Button
+                    icon={<ImportOutlined />}
+                    loading={previewLoading || importing}
+                    block
+                    type="primary"
+                  >
+                    {previewLoading ? '预览中...' : importing ? '导入中...' : '导入分配关系'}
+                  </Button>
+                </Upload>
+              </Space>
+            </Card>
+          </Col>
+        </Row>
+
+        <Divider />
+        
+        <div style={{ color: '#666', fontSize: '12px' }}>
+          <p><strong>分组信息导入说明：</strong></p>
+          <ul>
+            <li>用于导入分组基础信息（分组名称、教师、联系方式、报到地点等）</li>
+            <li>支持的文件格式：.xlsx, .xls</li>
+          </ul>
+          
+          <p><strong>学生分组分配导入说明：</strong></p>
+          <ul>
+            <li>用于导入学生与分组的对应关系</li>
+            <li>请确保学生和分组信息已存在于系统中</li>
+            <li>通过学生通知书编号和分组名称进行匹配</li>
+          </ul>
+        </div>
       </Modal>
+
+      {/* 分配预览模态框 */}
+      <AssignmentPreviewModal
+        visible={previewModalVisible}
+        previewData={previewData}
+        onConfirm={handleConfirmImport}
+        onCancel={handleCancelPreview}
+        loading={importing}
+      />
+
+      {/* 批量删除模态框 */}
+      <GroupBulkDeleteModal
+        visible={bulkDeleteModalVisible}
+        onCancel={() => setBulkDeleteModalVisible(false)}
+        onSuccess={handleBulkDeleteSuccess}
+        selectedGroupIds={selectedRowKeys.map(key => Number(key))}
+      />
     </div>
   );
 };

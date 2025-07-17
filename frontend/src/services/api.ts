@@ -11,7 +11,10 @@ import {
   GroupFilters,
   GroupStatistics,
   GroupStudentList,
-  StudentGroupAssignment
+  StudentGroupAssignment,
+  PreviewResult,
+  DeleteResponse,
+  ImportBatchesResponse
 } from '../types';
 
 // 创建axios实例
@@ -162,6 +165,24 @@ export class StudentService {
     const response = await api.post('/students/bulk_create/', students);
     return response.data;
   }
+
+  // 批量删除学生
+  static async bulkDeleteStudents(params: {
+    student_ids?: number[];
+    import_batch?: string;
+    delete_all?: boolean;
+  }): Promise<DeleteResponse> {
+    const response = await api.delete('/students/bulk_delete/', {
+      data: params
+    });
+    return response.data;
+  }
+
+  // 获取所有导入批次
+  static async getImportBatches(): Promise<ImportBatchesResponse> {
+    const response = await api.get('/students/import_batches/');
+    return response.data;
+  }
 }
 
 // 分组管理API
@@ -252,6 +273,48 @@ export const GroupService = {
   downloadGroupTemplate: (): Promise<Blob> => {
     return api.get('/groups/download_template/', {
       responseType: 'blob',
+    }).then(res => res.data);
+  },
+
+  // 导入学生分组分配Excel
+  importAssignmentsExcel: (file: File): Promise<ImportResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    return api.post('/assignments/import_assignments/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }).then(res => res.data);
+  },
+
+  // 下载学生分组分配导入模板
+  downloadAssignmentTemplate: (): Promise<Blob> => {
+    return api.get('/assignments/download_assignment_template/', {
+      responseType: 'blob',
+    }).then(res => res.data);
+  },
+
+    // 预览学生分组分配Excel
+  previewAssignmentsExcel: (file: File): Promise<PreviewResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    return api.post('/assignments/preview_import_assignments/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }).then(res => res.data);
+  },
+
+  // 批量删除分组
+  bulkDeleteGroups: (params: {
+    group_ids?: number[];
+    group_names?: string[];
+    delete_all?: boolean;
+  }): Promise<DeleteResponse> => {
+    return api.delete('/groups/bulk_delete/', {
+      data: params
     }).then(res => res.data);
   },
 };
