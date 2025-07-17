@@ -34,6 +34,7 @@ import GroupFormModal from '../components/GroupFormModal';
 import GroupStudentsModal from '../components/GroupStudentsModal';
 import AssignmentPreviewModal from '../components/AssignmentPreviewModal';
 import GroupBulkDeleteModal from '../components/GroupBulkDeleteModal';
+import DeleteSelectedGroupsModal from '../components/DeleteSelectedGroupsModal';
 
 const { Search } = Input;
 const { Title } = Typography;
@@ -53,6 +54,7 @@ const GroupManagement: React.FC = () => {
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [bulkDeleteModalVisible, setBulkDeleteModalVisible] = useState(false);
+  const [deleteSelectedModalVisible, setDeleteSelectedModalVisible] = useState(false);
   const [editingGroup, setEditingGroup] = useState<GroupInfo | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -143,6 +145,11 @@ const GroupManagement: React.FC = () => {
     setSelectedRowKeys([]);
     loadGroups();
     loadStatistics();
+  };
+
+  // 获取选中的分组信息
+  const getSelectedGroups = () => {
+    return groups.filter(group => selectedRowKeys.includes(group.id));
   };
 
   // 行选择配置
@@ -569,10 +576,16 @@ const GroupManagement: React.FC = () => {
               <Button
                 danger
                 icon={<DeleteOutlined />}
-                onClick={() => setBulkDeleteModalVisible(true)}
+                onClick={() => setDeleteSelectedModalVisible(true)}
                 disabled={selectedRowKeys.length === 0}
               >
-                批量删除 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
+                删除选中 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
+              </Button>
+              <Button
+                danger
+                onClick={() => setBulkDeleteModalVisible(true)}
+              >
+                批量删除
               </Button>
               <Button
                 icon={<ReloadOutlined />}
@@ -744,7 +757,14 @@ const GroupManagement: React.FC = () => {
         visible={bulkDeleteModalVisible}
         onCancel={() => setBulkDeleteModalVisible(false)}
         onSuccess={handleBulkDeleteSuccess}
-        selectedGroupIds={selectedRowKeys.map(key => Number(key))}
+      />
+
+      {/* 删除选中分组模态框 */}
+      <DeleteSelectedGroupsModal
+        visible={deleteSelectedModalVisible}
+        onCancel={() => setDeleteSelectedModalVisible(false)}
+        onSuccess={handleBulkDeleteSuccess}
+        selectedGroups={getSelectedGroups()}
       />
     </div>
   );

@@ -10,29 +10,26 @@ interface StudentBulkDeleteModalProps {
   visible: boolean;
   onCancel: () => void;
   onSuccess: () => void;
-  selectedStudentIds?: number[];
+  // 不再接收选中的学生ID，只处理批次删除和全部删除
 }
 
 const StudentBulkDeleteModal: React.FC<StudentBulkDeleteModalProps> = ({
   visible,
   onCancel,
   onSuccess,
-  selectedStudentIds = []
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [batches, setBatches] = useState<ImportBatch[]>([]);
-  const [deleteType, setDeleteType] = useState<'selected' | 'batch' | 'all'>('selected');
+  const [deleteType, setDeleteType] = useState<'batch' | 'all'>('batch');
 
   useEffect(() => {
     if (visible) {
       loadBatches();
-      // 如果有选中的学生，默认选择删除选中的学生
-      if (selectedStudentIds.length > 0) {
-        setDeleteType('selected');
-      }
+      // 默认选择按批次删除
+      setDeleteType('batch');
     }
-  }, [visible, selectedStudentIds]);
+  }, [visible]);
 
   const loadBatches = async () => {
     try {
@@ -51,13 +48,6 @@ const StudentBulkDeleteModal: React.FC<StudentBulkDeleteModalProps> = ({
       let params: any = {};
 
       switch (deleteType) {
-        case 'selected':
-          if (selectedStudentIds.length === 0) {
-            message.error('请先选择要删除的学生');
-            return;
-          }
-          params.student_ids = selectedStudentIds;
-          break;
         case 'batch':
           if (!values.import_batch) {
             message.error('请选择要删除的批次');
@@ -90,14 +80,6 @@ const StudentBulkDeleteModal: React.FC<StudentBulkDeleteModalProps> = ({
   const getDeleteTypeOptions = () => {
     const options = [];
     
-    if (selectedStudentIds.length > 0) {
-      options.push(
-        <Option key="selected" value="selected">
-          删除选中的学生 ({selectedStudentIds.length}名)
-        </Option>
-      );
-    }
-    
     options.push(
       <Option key="batch" value="batch">
         按批次删除
@@ -115,15 +97,6 @@ const StudentBulkDeleteModal: React.FC<StudentBulkDeleteModalProps> = ({
 
   const renderDeleteContent = () => {
     switch (deleteType) {
-      case 'selected':
-        return (
-          <Alert
-            message={`将删除 ${selectedStudentIds.length} 名选中的学生`}
-            type="warning"
-            showIcon
-          />
-        );
-      
       case 'batch':
         return (
           <>

@@ -33,6 +33,7 @@ import { StudentService } from '../services/api';
 import StudentDetailModal from '../components/StudentDetailModal';
 import StudentFormModal from '../components/StudentFormModal';
 import StudentBulkDeleteModal from '../components/StudentBulkDeleteModal';
+import DeleteSelectedStudentsModal from '../components/DeleteSelectedStudentsModal';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -53,6 +54,7 @@ const StudentList: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [bulkDeleteModalVisible, setBulkDeleteModalVisible] = useState(false);
+  const [deleteSelectedModalVisible, setDeleteSelectedModalVisible] = useState(false);
 
   const [form] = Form.useForm();
 
@@ -175,6 +177,11 @@ const StudentList: React.FC = () => {
   const handleBulkDeleteSuccess = () => {
     setSelectedRowKeys([]);
     loadStudents();
+  };
+
+  // 获取选中的学生信息
+  const getSelectedStudents = () => {
+    return students.filter(student => selectedRowKeys.includes(student.id));
   };
 
   // 行选择配置
@@ -354,10 +361,16 @@ const StudentList: React.FC = () => {
               <Button
                 danger
                 icon={<DeleteOutlined />}
-                onClick={() => setBulkDeleteModalVisible(true)}
+                onClick={() => setDeleteSelectedModalVisible(true)}
                 disabled={selectedRowKeys.length === 0}
               >
-                批量删除 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
+                删除选中 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
+              </Button>
+              <Button
+                danger
+                onClick={() => setBulkDeleteModalVisible(true)}
+              >
+                批量删除
               </Button>
               <Button
                 icon={<ReloadOutlined />}
@@ -545,7 +558,14 @@ const StudentList: React.FC = () => {
         visible={bulkDeleteModalVisible}
         onCancel={() => setBulkDeleteModalVisible(false)}
         onSuccess={handleBulkDeleteSuccess}
-        selectedStudentIds={selectedRowKeys.map(key => Number(key))}
+      />
+
+      {/* 删除选中学生模态框 */}
+      <DeleteSelectedStudentsModal
+        visible={deleteSelectedModalVisible}
+        onCancel={() => setDeleteSelectedModalVisible(false)}
+        onSuccess={handleBulkDeleteSuccess}
+        selectedStudents={getSelectedStudents()}
       />
     </div>
   );

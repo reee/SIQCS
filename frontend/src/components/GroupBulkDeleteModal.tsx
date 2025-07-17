@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Select, Checkbox, Button, Alert, message, Divider, Typography, Tag, Transfer } from 'antd';
+import { Modal, Form, Select, Checkbox, Button, Alert, message, Divider, Typography, Transfer } from 'antd';
 import { GroupService } from '../services/api';
 import { GroupInfo } from '../types';
 
@@ -10,7 +10,7 @@ interface GroupBulkDeleteModalProps {
   visible: boolean;
   onCancel: () => void;
   onSuccess: () => void;
-  selectedGroupIds?: number[];
+  // 不再接收选中的分组ID，只处理自定义选择和全部删除
 }
 
 interface TransferItem {
@@ -24,23 +24,20 @@ const GroupBulkDeleteModal: React.FC<GroupBulkDeleteModalProps> = ({
   visible,
   onCancel,
   onSuccess,
-  selectedGroupIds = []
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [groups, setGroups] = useState<GroupInfo[]>([]);
-  const [deleteType, setDeleteType] = useState<'selected' | 'custom' | 'all'>('selected');
+  const [deleteType, setDeleteType] = useState<'custom' | 'all'>('custom');
   const [transferTargetKeys, setTransferTargetKeys] = useState<string[]>([]);
 
   useEffect(() => {
     if (visible) {
       loadGroups();
-      // 如果有选中的分组，默认选择删除选中的分组
-      if (selectedGroupIds.length > 0) {
-        setDeleteType('selected');
-      }
+      // 默认选择自定义删除
+      setDeleteType('custom');
     }
-  }, [visible, selectedGroupIds]);
+  }, [visible]);
 
   const loadGroups = async () => {
     try {
@@ -59,13 +56,6 @@ const GroupBulkDeleteModal: React.FC<GroupBulkDeleteModalProps> = ({
       let params: any = {};
 
       switch (deleteType) {
-        case 'selected':
-          if (selectedGroupIds.length === 0) {
-            message.error('请先选择要删除的分组');
-            return;
-          }
-          params.group_ids = selectedGroupIds;
-          break;
         case 'custom':
           if (transferTargetKeys.length === 0) {
             message.error('请选择要删除的分组');
@@ -99,14 +89,6 @@ const GroupBulkDeleteModal: React.FC<GroupBulkDeleteModalProps> = ({
   const getDeleteTypeOptions = () => {
     const options = [];
     
-    if (selectedGroupIds.length > 0) {
-      options.push(
-        <Option key="selected" value="selected">
-          删除选中的分组 ({selectedGroupIds.length}个)
-        </Option>
-      );
-    }
-    
     options.push(
       <Option key="custom" value="custom">
         自定义选择分组
@@ -122,10 +104,6 @@ const GroupBulkDeleteModal: React.FC<GroupBulkDeleteModalProps> = ({
     return options;
   };
 
-  const getSelectedGroupsInfo = () => {
-    return groups.filter(group => selectedGroupIds.includes(group.id));
-  };
-
   const getTransferData = (): TransferItem[] => {
     return groups.map(group => ({
       key: group.id.toString(),
@@ -136,28 +114,6 @@ const GroupBulkDeleteModal: React.FC<GroupBulkDeleteModalProps> = ({
 
   const renderDeleteContent = () => {
     switch (deleteType) {
-      case 'selected':
-        const selectedGroups = getSelectedGroupsInfo();
-        return (
-          <div>
-            <Alert
-              message={`将删除 ${selectedGroupIds.length} 个选中的分组及其所有学生分配记录`}
-              type="warning"
-              showIcon
-            />
-            <div style={{ marginTop: 16 }}>
-              <Text strong>选中的分组：</Text>
-              <div style={{ marginTop: 8 }}>
-                {selectedGroups.map(group => (
-                  <Tag key={group.id} color="orange" style={{ marginBottom: 4 }}>
-                    {group.group_name} ({group.group_teacher})
-                  </Tag>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      
       case 'custom':
         return (
           <>
